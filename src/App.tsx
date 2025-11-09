@@ -1,14 +1,13 @@
 import { useCallback, useMemo } from 'react'
 import { ProductList } from './components/ProductList'
+import { ScrollToTopButton } from './components/ScrollToTopButton'
 import { SearchBar } from './components/SearchBar'
 import { useIntersectionObserver } from './hooks/useIntersectionObserver'
 import { useSearch } from './hooks/useSearch'
 
-
 function App() {
   const {
     query,
-    
     setQuery,
     debouncedQuery,
     items,
@@ -38,8 +37,6 @@ function App() {
   )
 
   const sentinelRef = useIntersectionObserver(handleLoadMore, options)
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900">
@@ -88,8 +85,8 @@ function App() {
             query={query}
           />
         </section>
-
       </div>
+      <ScrollToTopButton />
     </div>
   )
 }
