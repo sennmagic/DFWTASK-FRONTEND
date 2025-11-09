@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
-import { searchProducts  } from '../api/productApi'
+import { searchProducts } from '../api/productApi'
 import type { Product, SearchResponse } from '../types'
 
 export const DEBOUNCE_DELAY = 400
@@ -30,9 +30,6 @@ export interface UseSearchResult {
   refetch: () => Promise<unknown>
   reset: () => void
   debouncedQuery: string
-  isDebouncing: boolean
-  pagesLoaded: number
-  lastLoadedPage: number | null
 }
 
 export function useSearch(initialQuery = ''): UseSearchResult {
@@ -68,16 +65,10 @@ export function useSearch(initialQuery = ''): UseSearchResult {
   const aggregated = useMemo(() => {
     const pages = data?.pages ?? []
     const items = pages.flatMap((page) => page.items ?? [])
-
     const firstPage = pages.length > 0 ? pages[0] : undefined
     const total = firstPage && typeof firstPage.total === 'number' ? firstPage.total : 0
-    return {
-      items,
-      total,
-      pages,
-      pageCount: pages.length,
-      lastPage: pages.length > 0 ? pages[pages.length - 1]?.page ?? null : null,
-    }
+
+    return { items, total }
   }, [data])
 
   return {
@@ -97,9 +88,6 @@ export function useSearch(initialQuery = ''): UseSearchResult {
       void refetch({ cancelRefetch: true })
     },
     debouncedQuery,
-    isDebouncing: query !== debouncedQuery,
-    pagesLoaded: aggregated.pageCount,
-    lastLoadedPage: aggregated.lastPage,
   }
 }
 

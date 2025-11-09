@@ -1,16 +1,9 @@
-import type { PaginatedResult, Product, SearchRequest, SearchResponse } from '../types'
-import { getJson } from './httpClient'
+import type { Product, SearchRequest, SearchResponse } from '../types'
+import type { PaginatedResponse } from './helpers/pagination'
+import { toPaginatedResult } from './helpers/pagination'
+import { getData } from './services/httpClient'
 
 type RawProduct = Product & { name?: string }
-
-interface RawPaginatedResponse<TRawItem> {
-  query?: string
-  page?: number
-  limit?: number
-  total?: number
-  totalPages?: number
-  results?: TRawItem[]
-}
 
 interface NormalizeContext {
   page: number
@@ -19,11 +12,19 @@ interface NormalizeContext {
 
 const normalizeProduct = (raw: RawProduct, context: NormalizeContext): Product => {
   const title = raw.title ?? raw.name ?? 'Untitled product'
-  const primaryId = raw.id ?? raw.name ?? raw.title
-  const resolvedId =
-    typeof primaryId === 'string' && primaryId.trim().length > 0
-      ? primaryId
-      : `page-${context.page}-item-${context.index}`
+
+  const resolvedId = (() => {
+    const primaryId = raw.id ?? raw.name ?? raw.title
+
+    if (primaryId !== undefined && primaryId !== null) {
+      const candidate = String(primaryId).trim()
+      if (candidate.length > 0) {
+        return candidate
+      }
+    }
+
+    return createFallbackProductId(raw, context)
+  })()
 
   return {
     id: String(resolvedId),
@@ -37,6 +38,25 @@ const normalizeProduct = (raw: RawProduct, context: NormalizeContext): Product =
   }
 }
 
+function createFallbackProductId(raw: RawProduct, context: NormalizeContext): string {
+  const hintValues = [
+    raw.name,
+    raw.title,
+    raw.description,
+    raw.category,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+
+  const hint = hintValues[0] ?? 'product'
+
+  const normalizedHint = hint
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return ['fallback', context.page, context.index, normalizedHint].join('-')
+}
+
 export async function searchProducts({
   query,
   page = 1,
@@ -44,7 +64,7 @@ export async function searchProducts({
   category,
   signal,
 }: SearchRequest & { signal?: AbortSignal }): Promise<SearchResponse> {
-  const raw = await getJson<RawPaginatedResponse<RawProduct>, SearchQueryParams>('/products', {
+  const raw = await getData<PaginatedResponse<RawProduct>, SearchQueryParams>('/products', {
     params: {
       search: query,
       page,
@@ -64,33 +84,3 @@ type SearchQueryParams = {
   category?: string
 }
 
-function toPaginatedResult<TRawItem, TItem>(
-  raw: RawPaginatedResponse<TRawItem> | undefined,
-  mapItem: (item: TRawItem, context: { index: number; page: number }) => TItem,
-  fallback: { page: number; pageSize?: number },
-): PaginatedResult<TItem> {
-  const rawItems = Array.isArray(raw?.results) ? raw.results : []
-  const page = coercePositiveInt(raw?.page, fallback.page)
-  const items = rawItems.map((rawItem, index) => mapItem(rawItem, { index, page }))
-
-  const pageSize = coercePositiveInt(raw?.limit, fallback.pageSize ?? rawItems.length)
-  const total = coerceNonNegativeInt(raw?.total, items.length)
-
-  const totalPages =
-    pageSize > 0
-      ? coerceNonNegativeInt(raw?.totalPages, Math.ceil(total / pageSize))
-      : 0
-
-  const hasMore =
-    totalPages > 0 ? page < totalPages : pageSize > 0 && items.length === pageSize
-
-  return { items, total, page, pageSize, hasMore }
-}
-
-function coercePositiveInt(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback
-}
-
-function coerceNonNegativeInt(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback
-}

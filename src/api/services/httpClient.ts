@@ -98,14 +98,14 @@ export function pruneQueryParams<T extends Record<string, QueryValue>>(params: T
   return Object.fromEntries(sanitizedEntries) as Partial<T>
 }
 
-interface GetJsonOptions<TParams extends Record<string, QueryValue>> {
+interface GetDataOptions<TParams extends Record<string, QueryValue>> {
   params?: TParams
   signal?: AbortSignal
 }
 
-export async function getJson<TResponse, TParams extends Record<string, QueryValue>>(
+export async function getData<TResponse, TParams extends Record<string, QueryValue>>(
   url: string,
-  options: GetJsonOptions<TParams> = {},
+  options: GetDataOptions<TParams> = {},
 ): Promise<TResponse> {
   const { params, signal } = options
 

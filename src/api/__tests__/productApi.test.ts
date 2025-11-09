@@ -1,50 +1,33 @@
-const mockGet = jest.fn()
-const mockUse = jest.fn()
+const mockGetData = jest.fn()
 
-jest.mock('axios', () => {
-  const actual = jest.requireActual('axios')
-
-  actual.create = jest.fn(() => ({
-    get: mockGet,
-    interceptors: {
-      response: {
-        use: mockUse,
-      },
-    },
-  }))
-
-  return actual
-})
+jest.mock('../services/httpClient', () => ({
+  getData: mockGetData,
+}))
 
 import { searchProducts } from '../productApi'
 
 describe('searchProducts', () => {
   beforeEach(() => {
-    mockGet.mockReset()
-    mockUse.mockReset()
+    mockGetData.mockReset()
   })
 
   it('requests the products endpoint with pagination parameters and normalizes the response', async () => {
-    const apiResponse = {
-      data: {
-        query: 'iphone',
-        page: 2,
-        limit: 10,
-        total: 40,
-        totalPages: 4,
-        results: [
-          {
-            id: '1',
-            name: 'iPhone 15 Pro',
-            description: 'Latest flagship',
-            price: 1500,
-            category: 'mobile',
-          },
-        ],
-      },
-    }
-
-    mockGet.mockResolvedValueOnce(apiResponse)
+    mockGetData.mockResolvedValueOnce({
+      query: 'iphone',
+      page: 2,
+      limit: 10,
+      total: 40,
+      totalPages: 4,
+      results: [
+        {
+          id: '1',
+          name: 'iPhone 15 Pro',
+          description: 'Latest flagship',
+          price: 1500,
+          category: 'mobile',
+        },
+      ],
+    })
 
     const result = await searchProducts({
       query: 'iphone',
@@ -52,7 +35,7 @@ describe('searchProducts', () => {
       pageSize: 10,
     })
 
-    expect(mockGet).toHaveBeenCalledWith('/products', {
+    expect(mockGetData).toHaveBeenCalledWith('/products', {
       params: {
         search: 'iphone',
         page: 2,
@@ -68,7 +51,7 @@ describe('searchProducts', () => {
           title: 'iPhone 15 Pro',
           description: 'Latest flagship',
           image: undefined,
-          thumbnail: undefined,
+      
           price: 1500,
           rating: undefined,
           category: 'mobile',
@@ -82,9 +65,7 @@ describe('searchProducts', () => {
   })
 
   it('falls back to sensible defaults when optional fields are missing', async () => {
-    mockGet.mockResolvedValueOnce({
-      data: {},
-    })
+    mockGetData.mockResolvedValueOnce({})
 
     const result = await searchProducts({
       query: '',
